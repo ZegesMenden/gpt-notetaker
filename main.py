@@ -4,6 +4,7 @@ import argparse
 from annotate import annotate
 from audioparse import parse_audio
 from fetch_yt import fetch_from_yt
+from fetch_web import fetch_from_web
 
 parser = argparse.ArgumentParser(description='Process some integers.')
 parser.add_argument('--url', '-u', type=str, nargs=1, help='source website URL')
@@ -22,6 +23,9 @@ audio_out = "audio.webm"
 save_transcript = False
 save_audio = False
 
+gpt_text_in = ""
+t_text_process = 0
+
 if args.url is None:
     print("ERROR: must provide URL (use --url or -u)")
 
@@ -38,14 +42,28 @@ if args.audio_out is not None:
     audio_out = args.audio_out[0]
     save_audio = True
 
-print(f"downloading audio from {src_url}")
-fetch_from_yt(src_url, audio_out)
+if "youtube" not in src_url:
 
-print("processing audio")
-audio_transcript, t_audio, t_process_audio = parse_audio(audio_out, transcript_out)
+    print(f"downloading text from {src_url}")
+    gpt_text_in = fetch_from_web(src_url, transcript_out)
+
+else:
+
+    print(f"downloading audio from {src_url}")
+    fetch_from_yt(src_url, audio_out)
+
+    print("processing audio")
+    gpt_text_in, t_audio, t_process_audio = parse_audio(audio_out, transcript_out)
+
+    t_text_process = t_process_audio
 
 print("generating notes")
-_, t_process_notes, prompt_tokens, generation_tokens = annotate(audio_transcript, notes_out)
+_, t_process_notes, prompt_tokens, generation_tokens = annotate(gpt_text_in, notes_out)
 
+if not save_audio:
+    os.remove(audio_out)
+
+if not save_transcript:
+    os.remove(transcript_out)
+    
 print("done")
-
